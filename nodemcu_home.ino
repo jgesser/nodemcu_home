@@ -34,6 +34,9 @@
 #define BLYNK_PIN_RELAY2 V9
 #define BLYNK_PIN_RESET V10
 
+#define AP_NAME "ESP_Sensors"
+#define AP_PASS "12345678"
+
 OTA ota;
 
 BlynkTimer timer;
@@ -123,10 +126,14 @@ void setupWifi() {
     Serial.println("Initializing WifiManager...");
 
     WiFiManager wifiManager;
-    wifiManager.setConfigPortalTimeout(300); //5 min.
-    wifiManager.autoConnect();
-    Serial.print("IP address: ");
-    Serial.println(WiFi.localIP());
+    wifiManager.setConfigPortalTimeout(180); //3 min.
+    if (wifiManager.autoConnect(AP_NAME, AP_PASS)) {
+        Serial.print("IP address: ");
+        Serial.println(WiFi.localIP());
+    } else {
+        Serial.println("NOT CONNECTED, rebooting...");
+        ESP.reset();
+    }
 
     Serial.println("DONE!");
 }
@@ -168,13 +175,14 @@ void mqttLoop() {
 }
 
 void mqttConnect() {
-    int8_t ret;
     // Stop if already connected
     if (mqtt.connected()) {
         return;
     }
 
-    Serial.print("Connecting to MQTT... ");
+    Serial.println("Connecting to MQTT... ");
+
+    int8_t ret;
     uint8_t retries = 10;
     while ((ret = mqtt.connect()) != 0) // connect will return 0 for connected
     {
@@ -185,8 +193,7 @@ void mqttConnect() {
         retries--;
         if (retries == 0) {
             // basically die and wait for WDT to reset me
-            while (1)
-                ;
+            ESP.restart();
         }
     }
     Serial.println("MQTT Connected!");
